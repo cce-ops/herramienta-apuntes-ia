@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground: #0f172a;
+  --background: #f8fafc;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.prose-apunte h1 { @apply text-2xl font-bold text-primary mt-8 mb-3; }
+.prose-apunte h2 { @apply text-xl font-semibold text-secondary mt-6 mb-2; }
+.prose-apunte h3 { @apply text-base font-bold mt-4 mb-2; }
+.prose-apunte p  { @apply text-[15px] leading-relaxed mb-3 text-slate-700; }
+.prose-apunte ul { @apply list-disc list-inside mb-3 space-y-1 text-slate-700; }
+.prose-apunte ol { @apply list-decimal list-inside mb-3 space-y-1 text-slate-700; }
+.prose-apunte table { @apply w-full text-sm border-collapse my-4; }
+.prose-apunte th { @apply bg-slate-100 border border-slate-300 px-3 py-2 text-left font-semibold; }
+.prose-apunte td { @apply border border-slate-300 px-3 py-2 align-top; }
+.prose-apunte .idea {
+  @apply my-4 px-4 py-3 rounded border-l-4 border-ideaBorder bg-ideaBg;
+}
+.prose-apunte .caja-azul {
+  @apply my-4 px-4 py-3 rounded border border-cajaAzulBorde bg-cajaAzul;
+}
+.prose-apunte .caja-amarilla {
+  @apply my-4 px-4 py-3 rounded border border-cajaAmarillaBorde bg-cajaAmarilla;
+}
+.prose-apunte .formula {
+  @apply my-4 text-center italic text-slate-800 bg-slate-50 border border-slate-200 py-3 rounded;
+}
+.prose-apunte .definicion {
+  @apply my-3 pl-4 border-l-2 border-slate-400;
+}
