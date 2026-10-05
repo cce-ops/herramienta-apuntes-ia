@@ -1,6 +1,8 @@
 # Apuntes IA
 
-Herramienta que transforma materiales docentes (DOCX, PDF, PPTX, MD, TXT) en apuntes universitarios estructurados usando Gemini, y los exporta a un `.docx` editable con el formato de la asignatura "Diseño sostenible".
+Herramienta que transforma materiales docentes (DOCX, PDF, PPTX, MD, TXT) en apuntes universitarios estructurados usando Gemini, y los exporta a un `.docx` editable.
+
+https://herramienta-apuntes-ia.vercel.app/
 
 ## Características
 
