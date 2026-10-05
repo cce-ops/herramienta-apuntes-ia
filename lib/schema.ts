@@ -43,18 +43,20 @@ export const ApartadoSchema = z.object({
 
 export const ApunteSchema = z.object({
   titulo_documento: z.string(),
+  // Límites duros (permiten instrucciones del profesor). Por defecto el
+  // prompt pide 3-6 apartados y 6-10 preguntas; el esquema es más amplio
+  // a propósito para no rechazar personalizaciones válidas.
   apartados: z.array(ApartadoSchema).min(2).max(6),
   preguntas_repaso: z.array(z.string()).min(5).max(12),
-  referencias: z
-    .array(
-      z.object({
-        autor: z.string(),
-        anio: z.string(),
-        titulo: z.string(),
-        url: z.string().optional(),
-      })
-    )
-    .min(1),
+  // Puede venir vacía si el material no cita fuentes. Prohibido inventar.
+  referencias: z.array(
+    z.object({
+      autor: z.string(),
+      anio: z.string(),
+      titulo: z.string(),
+      url: z.string().optional(),
+    })
+  ),
 });
 
 export type Apunte = z.infer<typeof ApunteSchema>;

@@ -36,6 +36,13 @@ export default function Home() {
                   <strong>Caracteres originales:</strong>{" "}
                   {meta.caracteres_originales.toLocaleString("es-ES")}
                 </div>
+                {meta.truncado && (
+                  <div className="text-amber-700">
+                    <strong>Aviso:</strong> material truncado a{" "}
+                    {(meta.caracteres_enviados ?? 0).toLocaleString("es-ES")}{" "}
+                    caracteres para el modelo.
+                  </div>
+                )}
                 <div>
                   <strong>Modelo solicitado:</strong> {meta.modelo_solicitado}
                 </div>

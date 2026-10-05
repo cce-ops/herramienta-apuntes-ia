@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseArchivo } from "@/lib/parser";
+import { MATERIAL_MAX_CHARS } from "@/lib/prompts";
 import {
   generarApuntesConFallback,
   GeminiError,
@@ -73,6 +74,7 @@ export async function POST(req: NextRequest) {
     });
 
     const huboFallback = resultado.modeloUsado !== modelo;
+    const truncado = parsed.caracteres > MATERIAL_MAX_CHARS;
 
     return NextResponse.json({
       ok: true,
@@ -80,6 +82,8 @@ export async function POST(req: NextRequest) {
       meta: {
         archivo: parsed.nombre,
         caracteres_originales: parsed.caracteres,
+        caracteres_enviados: Math.min(parsed.caracteres, MATERIAL_MAX_CHARS),
+        truncado,
         modelo_solicitado: modelo,
         modelo_usado: resultado.modeloUsado,
         hubo_fallback: huboFallback,

@@ -12,6 +12,8 @@ import type { Apunte } from "@/lib/schema";
 export type MetaGeneracion = {
   archivo: string;
   caracteres_originales: number;
+  caracteres_enviados?: number;
+  truncado?: boolean;
   modelo_solicitado: ModeloId;
   modelo_usado: ModeloId;
   hubo_fallback: boolean;

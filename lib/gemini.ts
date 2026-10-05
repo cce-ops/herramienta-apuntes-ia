@@ -80,13 +80,30 @@ function redactarSecretos(mensaje: string, secreto: string): string {
 }
 
 function extraerJSON(texto: string): unknown {
-  const limpio = texto.replace(/```json|```/g, "").trim();
-  const inicio = limpio.indexOf("{");
-  const fin = limpio.lastIndexOf("}");
-  if (inicio === -1 || fin === -1) {
+  const sinCercas = texto
+    .replace(/```json\s*/gi, "")
+    .replace(/```/g, "")
+    .trim();
+  // 1) Respuesta limpia: parse directo.
+  try {
+    return JSON.parse(sinCercas);
+  } catch {
+    // seguimos con extracción por llaves
+  }
+  // 2) Objeto exterior: primera "{" hasta la última "}".
+  const inicio = sinCercas.indexOf("{");
+  const fin = sinCercas.lastIndexOf("}");
+  if (inicio === -1 || fin === -1 || fin <= inicio) {
     throw new GeminiError("La respuesta no contiene JSON válido.", 200);
   }
-  return JSON.parse(limpio.slice(inicio, fin + 1));
+  try {
+    return JSON.parse(sinCercas.slice(inicio, fin + 1));
+  } catch (err) {
+    throw new GeminiError(
+      `JSON inválido: ${err instanceof Error ? err.message : "?"}`,
+      200
+    );
+  }
 }
 
 /* ============================================================
@@ -196,7 +213,9 @@ async function llamarGeminiUnaVez(opts: {
   try {
     crudo = extraerJSON(texto);
   } catch (err) {
-    // Un JSON malformado puede ser transitorio, reintentamos
+    // Un JSON malformado puede ser transitorio, reintentamos.
+    // extraerJSON ya devuelve GeminiError con status 200: no re-envolver.
+    if (err instanceof GeminiError) throw err;
     throw new GeminiError(
       `JSON inválido: ${err instanceof Error ? err.message : "?"}`,
       200

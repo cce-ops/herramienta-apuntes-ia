@@ -13,6 +13,8 @@ const config: Config = {
         cajaAzulBorde: "#1976D2",
         cajaAmarilla: "#FFF8E1",
         cajaAmarillaBorde: "#F9A825",
+        cajaVerde: "#E8F5E9",
+        cajaVerdeBorde: "#388E3C",
       },
     },
   },

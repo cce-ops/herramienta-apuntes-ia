@@ -220,6 +220,14 @@ function tabla(datos: {
   filas: string[][];
 }): { tabla: Table; captionNodo?: Paragraph } {
   const filas: TableRow[] = [];
+  const nCols = datos.columnas.length;
+
+  // Normaliza filas irregulares del LLM al ancho del encabezado.
+  const filasNorm = datos.filas.map((f) => {
+    const recortada = f.slice(0, nCols);
+    while (recortada.length < nCols) recortada.push("");
+    return recortada.map((c) => String(c ?? ""));
+  });
 
   // Encabezado
   filas.push(
@@ -247,7 +255,7 @@ function tabla(datos: {
   );
 
   // Filas
-  for (const fila of datos.filas) {
+  for (const fila of filasNorm) {
     filas.push(
       new TableRow({
         children: fila.map(
@@ -412,30 +420,32 @@ export function construirDocumento(apunte: Apunte): Document {
     );
   });
 
-  // Referencias
-  children.push(h1("Referencias"));
-  for (const r of apunte.referencias) {
-    children.push(
-      new Paragraph({
-        spacing: { after: 80 },
-        children: [
-          new TextRun({
-            text: `${r.autor} (${r.anio}). `,
-            size: 20,
-            color: COLOR.body,
-          }),
-          new TextRun({
-            text: `${r.titulo}. `,
-            italics: true,
-            size: 20,
-            color: COLOR.body,
-          }),
-          ...(r.url
-            ? [new TextRun({ text: r.url, size: 18, color: "0563C1" })]
-            : []),
-        ],
-      })
-    );
+  // Referencias (puede venir vacía si el material no cita fuentes: no inventar)
+  if (apunte.referencias.length > 0) {
+    children.push(h1("Referencias"));
+    for (const r of apunte.referencias) {
+      children.push(
+        new Paragraph({
+          spacing: { after: 80 },
+          children: [
+            new TextRun({
+              text: `${r.autor} (${r.anio}). `,
+              size: 20,
+              color: COLOR.body,
+            }),
+            new TextRun({
+              text: `${r.titulo}. `,
+              italics: true,
+              size: 20,
+              color: COLOR.body,
+            }),
+            ...(r.url
+              ? [new TextRun({ text: r.url, size: 18, color: "0563C1" })]
+              : []),
+          ],
+        })
+      );
+    }
   }
 
   return new Document({
@@ -472,6 +482,17 @@ export function construirDocumento(apunte: Apunte): Document {
 
 /* ---------- Packer browser ---------- */
 
+/** Limpia un título controlado por el LLM para usarlo como nombre de archivo. */
+export function sanearNombreArchivo(nombre: string, fallback = "apuntes"): string {
+  const sinExt = nombre.replace(/\.[^.]+$/, "");
+  const limpio = sinExt
+    .replace(/[<>:"/\\|?*\u0000-\u001F]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 100);
+  return limpio || fallback;
+}
+
 export async function descargarDocx(
   apunte: Apunte,
   nombreArchivo = "apuntes.docx"
@@ -481,7 +502,7 @@ export async function descargarDocx(
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = nombreArchivo.replace(/\.[^.]+$/, "") + "_apuntes.docx";
+  a.download = sanearNombreArchivo(nombreArchivo) + "_apuntes.docx";
   document.body.appendChild(a);
   a.click();
   a.remove();

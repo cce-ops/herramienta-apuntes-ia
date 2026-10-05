@@ -72,7 +72,7 @@ function Bloque({ b }: { b: ContentBlock }) {
           ? "caja-azul"
           : b.color === "amarillo"
             ? "caja-amarilla"
-            : "idea";
+            : "caja-verde";
       return <div className={cls}>{b.texto}</div>;
     }
     case "cita":
@@ -213,15 +213,19 @@ export default function PreviewPane({
           ))}
         </ol>
 
-        <h1>Referencias</h1>
-        <ul className="!list-none !pl-0">
-          {apunte.referencias.map((r, i) => (
-            <li key={i} className="text-sm text-slate-600">
-              {r.autor} ({r.anio}). <em>{r.titulo}</em>.{" "}
-              {r.url && <span className="text-blue-600">{r.url}</span>}
-            </li>
-          ))}
-        </ul>
+        {apunte.referencias.length > 0 && (
+          <>
+            <h1>Referencias</h1>
+            <ul className="!list-none !pl-0">
+              {apunte.referencias.map((r, i) => (
+                <li key={i} className="text-sm text-slate-600">
+                  {r.autor} ({r.anio}). <em>{r.titulo}</em>.{" "}
+                  {r.url && <span className="text-blue-600">{r.url}</span>}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </article>
     </div>
   );
