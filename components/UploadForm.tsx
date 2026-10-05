@@ -1,7 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { MODELOS_DISPONIBLES, type ModeloId } from "@/lib/gemini";
+import {
+  MODELOS_DISPONIBLES,
+  INTENTOS_POR_MODELO,
+  DELAYS_MS,
+  type ModeloId,
+} from "@/lib/gemini";
 import type { Apunte } from "@/lib/schema";
 
 export type MetaGeneracion = {
@@ -25,6 +30,7 @@ type Props = {
 };
 
 const MAX_INSTRUCCIONES = 6000;
+const MAX_ARCHIVO_BYTES = 20 * 1024 * 1024; // 20 MB, igual que el servidor
 
 export default function UploadForm({ onResultado }: Props) {
   const [file, setFile] = useState<File | null>(null);
@@ -74,6 +80,10 @@ export default function UploadForm({ onResultado }: Props) {
     e.preventDefault();
     setError(null);
     if (!file) return setError("Selecciona un archivo.");
+    if (file.size > MAX_ARCHIVO_BYTES)
+      return setError(
+        `Archivo demasiado grande (${(file.size / 1024 / 1024).toFixed(1)} MB). Máximo 20 MB.`
+      );
     if (!apiKey.trim())
       return setError("Introduce tu API key de Gemini.");
 
@@ -120,7 +130,7 @@ export default function UploadForm({ onResultado }: Props) {
           className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary file:text-white hover:file:bg-secondary file:cursor-pointer"
         />
         <p className="mt-1 text-xs text-slate-500">
-          Formatos admitidos: DOCX, PDF, PPTX, MD, TXT.
+          Formatos admitidos: DOCX, PDF, PPTX, MD, TXT. Máximo 20 MB.
         </p>
       </div>
 
@@ -172,7 +182,10 @@ export default function UploadForm({ onResultado }: Props) {
             ))}
           </ol>
           <p className="mt-2">
-            Hasta 3 intentos por modelo con esperas de 2 s, 4 s y 8 s.
+            Hasta {INTENTOS_POR_MODELO} intentos por modelo
+            {DELAYS_MS.length > 0 &&
+              ` con espera de ${DELAYS_MS.map((d) => `${d / 1000} s`).join(", ")}`}
+            .
           </p>
         </details>
       </div>
