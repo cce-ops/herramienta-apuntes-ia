@@ -137,7 +137,7 @@ npm run dev
 Abre `http://localhost:3000`, sube un PPTX de prueba, pega tu API key y descarga el Word. El `.docx` generado tendrá:
 
 - Título centrado
-- Índice automático de apartados
+- Índice manual de apartados
 - Cajas verdes `IDEA CLAVE` con borde lateral grueso
 - Cajas azules/amarillas de énfasis
 - Tablas con cabecera sombreada

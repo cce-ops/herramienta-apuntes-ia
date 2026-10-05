@@ -31,6 +31,9 @@ body {
 .prose-apunte .caja-amarilla {
   @apply my-4 px-4 py-3 rounded border border-cajaAmarillaBorde bg-cajaAmarilla;
 }
+.prose-apunte .caja-verde {
+  @apply my-4 px-4 py-3 rounded border border-cajaVerdeBorde bg-cajaVerde;
+}
 .prose-apunte .formula {
   @apply my-4 text-center italic text-slate-800 bg-slate-50 border border-slate-200 py-3 rounded;
 }
