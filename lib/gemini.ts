@@ -25,10 +25,14 @@ export const ORDEN_FALLBACK: ModeloId[] = MODELOS_DISPONIBLES.map(
 
 /* ============================================================
  *  Configuración del sistema de reintentos
+ *  Valores ajustados al límite de 60 s del plan Hobby de Vercel:
+ *  peor caso por modelo ≈ 25 s + 2 s + 25 s = 52 s + parseo.
+ *  En plan Pro (maxDuration 300 s) puedes subir a 3 intentos
+ *  y TIMEOUT_MS = 50_000.
  * ============================================================ */
-const INTENTOS_POR_MODELO = 3; // 1 intento inicial + 2 reintentos
-const DELAYS_MS = [2000, 4000, 8000]; // espera entre reintentos
-const TIMEOUT_MS = 50_000; // timeout por intento
+export const INTENTOS_POR_MODELO = 2;
+export const DELAYS_MS = [2000]; // longitud = INTENTOS_POR_MODELO - 1
+export const TIMEOUT_MS = 25_000; // timeout por intento
 
 /* ============================================================
  *  Errores
@@ -44,6 +48,7 @@ export class GeminiError extends Error {
 
 function esErrorReintentable(status: number): boolean {
   if (status === 0) return true; // error de red
+  if (status === 200) return true; // JSON inválido o esquema incorrecto (transitorio del modelo)
   if (status === 408) return true; // timeout
   if (status === 429) return true; // rate limit
   if (status >= 500 && status <= 599) return true; // servidor
@@ -63,6 +68,15 @@ function esErrorFatal(status: number, mensaje = ""): boolean {
  * ============================================================ */
 function dormir(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+/** Evita devolver la API key al cliente si Gemini la ecoa en un mensaje. */
+function redactarSecretos(mensaje: string, secreto: string): string {
+  if (!secreto) return mensaje;
+  // Sustitución directa + patrón genérico de keys de Google.
+  return mensaje
+    .split(secreto).join("[REDACTED]")
+    .replace(/AIza[0-9A-Za-z\-_]{10,}/g, "[REDACTED]");
 }
 
 function extraerJSON(texto: string): unknown {
@@ -131,15 +145,16 @@ async function llamarGeminiUnaVez(opts: {
 
   let res: Response;
   try {
-    res = await fetch(
-      `${GEMINI_ENDPOINT}/${modelo}:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      }
-    );
+    // La API key viaja en cabecera, nunca en la URL (evita fugas en logs).
+    res = await fetch(`${GEMINI_ENDPOINT}/${modelo}:generateContent`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
   } catch (err) {
     if (err instanceof Error && err.name === "AbortError") {
       throw new GeminiError(
@@ -245,7 +260,8 @@ export async function generarApuntesConFallback(opts: {
         return { apunte, modeloUsado: modelo, intentos };
       } catch (err) {
         const status = err instanceof GeminiError ? err.status : 0;
-        const mensaje = err instanceof Error ? err.message : String(err);
+        const mensajeBruto = err instanceof Error ? err.message : String(err);
+        const mensaje = redactarSecretos(mensajeBruto, apiKey);
 
         const log: IntentoLog = {
           modelo,

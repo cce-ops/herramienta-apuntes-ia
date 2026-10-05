@@ -33,12 +33,12 @@ El motor de generación aplica esta política:
 | Etapa | Comportamiento |
 | --- | --- |
 | 1 | Se intenta con el **modelo elegido** por el profesor. |
-| 2 | Si falla con error reintentable (429, 5xx, timeout, red), se **reintenta hasta 3 veces** con esperas de 2 s, 4 s y 8 s. |
+| 2 | Si falla con error reintentable (429, 5xx, timeout, red, JSON inválido), se **reintenta hasta 2 veces** con espera de 2 s. |
 | 3 | Si se agotan los intentos del modelo, se **pasa al siguiente** de la cascada. |
 | 4 | La cascada recorre los 6 modelos en este orden: `3.8 → 3.7 → 3.6 → 3.5 → 3.5-lite → 3.1-lite`, empezando por el elegido. |
 | 5 | Errores **no reintentables** (400, 404) saltan al siguiente modelo sin esperar. |
 | 6 | Errores **fatales** (401, 403, o cualquier mensaje que mencione `API key`) abortan todo de inmediato. |
-| 7 | Timeout por intento: **50 s**. |
+| 7 | Timeout por intento: **25 s**. |
 
 Al terminar, el cliente recibe:
 
@@ -52,18 +52,17 @@ La vista previa muestra un **panel plegable** con todo el historial.
 Edita las constantes al inicio de `lib/gemini.ts`:
 
 ```ts
-const INTENTOS_POR_MODELO = 3;
-const DELAYS_MS = [2000, 4000, 8000];
-const TIMEOUT_MS = 50_000;
+export const INTENTOS_POR_MODELO = 2;
+export const DELAYS_MS = [2000];
+export const TIMEOUT_MS = 25_000;
 ```
 
 ### ⚠️ Límite de tiempo en Vercel
 
-La ruta declara `maxDuration = 300` (5 min). En el **plan Hobby**, Vercel recorta a 60 s, lo cual puede ser insuficiente si caen varios modelos seguidos. Opciones:
+La ruta declara `maxDuration = 300` (5 min). En el **plan Hobby**, Vercel recorta a 60 s. Los valores por defecto (2 intentos, timeout 25 s) están ajustados para que un modelo complete dentro de ese límite. Si pasas a **Pro**, puedes subir a 3 intentos y 50 s por intento. Otras opciones:
 
-1. Pasar a plan **Pro** (300 s por función).
-2. Reducir `INTENTOS_POR_MODELO` a 2 y bajar los delays.
-3. Desplegar en otro host sin límite estricto (Fly.io, Railway, VPS propio).
+1. Pasar a plan **Pro** (300 s por función) y subir `INTENTOS_POR_MODELO` a 3.
+2. Desplegar en otro host sin límite estricto (Fly.io, Railway, VPS propio).
 
 ## Despliegue en Vercel
 

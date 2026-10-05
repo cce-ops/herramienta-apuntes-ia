@@ -3,6 +3,7 @@ import { parseArchivo } from "@/lib/parser";
 import {
   generarApuntesConFallback,
   GeminiError,
+  ORDEN_FALLBACK,
   type ModeloId,
 } from "@/lib/gemini";
 
@@ -11,6 +12,19 @@ export const maxDuration = 300; // 5 min (Pro). En Hobby se recorta a 60s.
 
 /** Tope de caracteres de las instrucciones del profesor. */
 const MAX_INSTRUCCIONES = 6000;
+
+/** Tope de subida para no agotar la memoria de la función serverless. */
+const MAX_ARCHIVO_BYTES = 20 * 1024 * 1024; // 20 MB
+const EXTENSIONES_VALIDAS = ["docx", "pdf", "pptx", "md", "markdown", "txt"];
+
+function esModeloValido(m: string): m is ModeloId {
+  return (ORDEN_FALLBACK as string[]).includes(m);
+}
+
+/** Redacta posibles keys de Google en mensajes que vuelven al cliente. */
+function redactar(mensaje: string): string {
+  return mensaje.replace(/AIza[0-9A-Za-z\-_]{10,}/g, "[REDACTED]");
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,13 +38,29 @@ export async function POST(req: NextRequest) {
 
     if (!file)
       return NextResponse.json({ error: "Falta el archivo." }, { status: 400 });
+    if (file.size > MAX_ARCHIVO_BYTES)
+      return NextResponse.json(
+        {
+          error: `Archivo demasiado grande (${(file.size / 1024 / 1024).toFixed(1)} MB). Máximo 20 MB.`,
+        },
+        { status: 413 }
+      );
+    const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+    if (!EXTENSIONES_VALIDAS.includes(ext))
+      return NextResponse.json(
+        { error: `Formato no soportado: .${ext}. Usa DOCX, PDF, PPTX, MD o TXT.` },
+        { status: 400 }
+      );
     if (!apiKey)
       return NextResponse.json(
         { error: "Falta la API key de Gemini." },
         { status: 400 }
       );
-    if (!modelo)
-      return NextResponse.json({ error: "Falta el modelo." }, { status: 400 });
+    if (!modelo || !esModeloValido(modelo))
+      return NextResponse.json(
+        { error: "Modelo no válido." },
+        { status: 400 }
+      );
 
     const parsed = await parseArchivo(file);
 
@@ -58,8 +88,9 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     const esGemini = err instanceof GeminiError;
-    const mensaje =
+    const mensajeBruto =
       err instanceof Error ? err.message : "Error desconocido";
+    const mensaje = redactar(mensajeBruto);
 
     let status: number;
     if (!esGemini) {

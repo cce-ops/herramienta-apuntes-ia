@@ -10,6 +10,7 @@ export type ParsedFile = {
 };
 
 const MAX_CHARS = 200_000;
+const MAX_BYTES = 20 * 1024 * 1024; // 20 MB, en línea con app/api/generate/route.ts
 
 function limpiar(txt: string): string {
   return txt
@@ -63,7 +64,15 @@ async function parseTexto(buffer: Buffer): Promise<string> {
 
 /* ---------------- Dispatcher ---------------- */
 export async function parseArchivo(file: File): Promise<ParsedFile> {
+  if (file.size > MAX_BYTES) {
+    throw new Error(
+      `Archivo demasiado grande (${(file.size / 1024 / 1024).toFixed(1)} MB). Máximo 20 MB.`
+    );
+  }
   const buffer = Buffer.from(await file.arrayBuffer());
+  if (buffer.length > MAX_BYTES) {
+    throw new Error("Archivo demasiado grande. Máximo 20 MB.");
+  }
   const nombre = file.name;
   const ext = nombre.split(".").pop()?.toLowerCase() ?? "";
 
