@@ -49,6 +49,11 @@ export default function Home() {
                 <div>
                   <strong>Modelo usado:</strong> {meta.modelo_usado}
                 </div>
+                {meta.paginas_solicitadas !== undefined && (
+                  <div>
+                    <strong>Páginas solicitadas:</strong> {meta.paginas_solicitadas} (aprox.)
+                  </div>
+                )}
                 <div>
                   <strong>Intentos totales:</strong> {meta.intentos.length}
                 </div>

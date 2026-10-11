@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseArchivo } from "@/lib/parser";
-import { MATERIAL_MAX_CHARS } from "@/lib/prompts";
+import { MATERIAL_MAX_CHARS, PAGINAS_DEFECTO, PAGINAS_MAX, PAGINAS_MIN } from "@/lib/prompts";
 import {
   generarApuntesConFallback,
   GeminiError,
@@ -36,6 +36,12 @@ export async function POST(req: NextRequest) {
     const instrucciones = String(form.get("instrucciones") ?? "")
       .trim()
       .slice(0, MAX_INSTRUCCIONES);
+    const paginasBruto = String(form.get("paginas") ?? "").trim();
+    let paginas = PAGINAS_DEFECTO;
+    if (paginasBruto) {
+      const n = Number.parseInt(paginasBruto, 10);
+      if (Number.isFinite(n)) paginas = Math.min(Math.max(n, PAGINAS_MIN), PAGINAS_MAX);
+    }
 
     if (!file)
       return NextResponse.json({ error: "Falta el archivo." }, { status: 400 });
@@ -71,6 +77,7 @@ export async function POST(req: NextRequest) {
       material: parsed.texto,
       nombreArchivo: parsed.nombre,
       instrucciones,
+      paginas,
     });
 
     const huboFallback = resultado.modeloUsado !== modelo;
@@ -88,6 +95,7 @@ export async function POST(req: NextRequest) {
         modelo_usado: resultado.modeloUsado,
         hubo_fallback: huboFallback,
         intentos: resultado.intentos,
+        paginas_solicitadas: paginas,
       },
     });
   } catch (err) {

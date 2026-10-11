@@ -7,6 +7,7 @@ import {
   DELAYS_MS,
   type ModeloId,
 } from "@/lib/gemini";
+import { PAGINAS_DEFECTO, PAGINAS_MAX, PAGINAS_MIN } from "@/lib/prompts";
 import type { Apunte } from "@/lib/schema";
 
 export type MetaGeneracion = {
@@ -17,6 +18,7 @@ export type MetaGeneracion = {
   modelo_solicitado: ModeloId;
   modelo_usado: ModeloId;
   hubo_fallback: boolean;
+  paginas_solicitadas?: number;
   intentos: {
     modelo: ModeloId;
     intento: number;
@@ -34,6 +36,12 @@ type Props = {
 const MAX_INSTRUCCIONES = 6000;
 const MAX_ARCHIVO_BYTES = 20 * 1024 * 1024; // 20 MB, igual que el servidor
 
+const PRESETS_PAGINAS = [
+  { etiqueta: "Corto", paginas: 2, desc: "~2 págs" },
+  { etiqueta: "Estándar", paginas: 5, desc: "~5 págs" },
+  { etiqueta: "Extenso", paginas: 9, desc: "~9 págs" },
+] as const;
+
 export default function UploadForm({ onResultado }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [instrucciones, setInstrucciones] = useState<string>("");
@@ -41,6 +49,7 @@ export default function UploadForm({ onResultado }: Props) {
   const [nombreGuia, setNombreGuia] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState<string>("");
   const [modelo, setModelo] = useState<ModeloId>("gemini-3.5-flash");
+  const [paginas, setPaginas] = useState<number>(PAGINAS_DEFECTO);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -95,6 +104,7 @@ export default function UploadForm({ onResultado }: Props) {
       fd.append("file", file);
       fd.append("apiKey", apiKey.trim());
       fd.append("modelo", modelo);
+      fd.append("paginas", String(paginas));
       fd.append("instrucciones", instruccionesFinales);
 
       const res = await fetch("/api/generate", { method: "POST", body: fd });
@@ -193,8 +203,60 @@ export default function UploadForm({ onResultado }: Props) {
       </div>
 
       <div>
+        <span id="etiqueta-paginas" className="block text-sm font-semibold text-slate-700 mb-2">
+          4. Longitud deseada (páginas aprox.)
+        </span>
+        <div className="flex gap-2" role="group" aria-labelledby="etiqueta-paginas">
+          {PRESETS_PAGINAS.map((p) => {
+            const activo = paginas === p.paginas;
+            return (
+              <button
+                key={p.etiqueta}
+                type="button"
+                aria-pressed={activo}
+                onClick={() => setPaginas(p.paginas)}
+                className={`flex-1 rounded-lg border px-2 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-primary ${
+                  activo
+                    ? "border-primary bg-primary text-white"
+                    : "border-slate-300 bg-white text-slate-600 hover:border-primary hover:text-primary"
+                }`}
+              >
+                {p.etiqueta}
+                <span className={`block text-xs font-normal ${activo ? "text-white/80" : "text-slate-400"}`}>
+                  {p.desc}
+                </span>
+              </button>
+            );
+          })}
+          <div className="flex items-center gap-1 rounded-lg border border-slate-300 px-2 py-1">
+            <label htmlFor="num-paginas" className="sr-only">
+              Número de páginas (1 a 15)
+            </label>
+            <input
+              id="num-paginas"
+              type="number"
+              min={PAGINAS_MIN}
+              max={PAGINAS_MAX}
+              value={paginas}
+              onChange={(e) => {
+                const n = Number.parseInt(e.target.value, 10);
+                if (Number.isFinite(n))
+                  setPaginas(Math.min(Math.max(n, PAGINAS_MIN), PAGINAS_MAX));
+                else if (e.target.value === "") setPaginas(PAGINAS_DEFECTO);
+              }}
+              className="w-14 text-center text-sm font-semibold text-slate-800 focus:outline-none"
+            />
+            <span className="text-xs text-slate-500">págs</span>
+          </div>
+        </div>
+        <p className="mt-1 text-xs text-slate-500">
+          Aproximado: la IA ajusta apartados y densidad. Si tus instrucciones piden otra extensión, mandan ellas.
+        </p>
+      </div>
+
+      <div>
         <label className="block text-sm font-semibold text-slate-700 mb-2">
-          4. Instrucciones para la IA (opcional)
+          5. Instrucciones para la IA (opcional)
         </label>
         <textarea
           value={instrucciones}

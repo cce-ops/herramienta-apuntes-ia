@@ -138,15 +138,16 @@ async function llamarGeminiUnaVez(opts: {
   material: string;
   nombreArchivo: string;
   instrucciones?: string;
+  paginas?: number;
 }): Promise<Apunte> {
-  const { apiKey, modelo, material, nombreArchivo, instrucciones } = opts;
+  const { apiKey, modelo, material, nombreArchivo, instrucciones, paginas } = opts;
 
   const body = {
     systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
     contents: [
       {
         role: "user",
-        parts: [{ text: buildUserPrompt(material, nombreArchivo, instrucciones) }],
+        parts: [{ text: buildUserPrompt(material, nombreArchivo, instrucciones, paginas) }],
       },
     ],
     generationConfig: {
@@ -243,8 +244,9 @@ export async function generarApuntesConFallback(opts: {
   material: string;
   nombreArchivo: string;
   instrucciones?: string;
+  paginas?: number;
 }): Promise<ResultadoGeneracion> {
-  const { apiKey, modeloPreferido, material, nombreArchivo, instrucciones } =
+  const { apiKey, modeloPreferido, material, nombreArchivo, instrucciones, paginas } =
     opts;
 
   // Construye la cola: empieza por el modelo elegido y sigue con el resto
@@ -267,6 +269,7 @@ export async function generarApuntesConFallback(opts: {
           material,
           nombreArchivo,
           instrucciones,
+          paginas,
         });
 
         const log: IntentoLog = {

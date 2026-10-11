@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Apunte, ContentBlock } from "@/lib/schema";
 import { descargarDocx } from "@/lib/docx-generator";
+import { latexASegmentos } from "@/lib/latex";
 import type { MetaGeneracion } from "./UploadForm";
 
 function Bloque({ b }: { b: ContentBlock }) {
@@ -51,8 +52,22 @@ function Bloque({ b }: { b: ContentBlock }) {
           </table>
         </div>
       );
-    case "formula":
-      return <div className="formula">{b.latex}</div>;
+    case "formula": {
+      const segs = latexASegmentos(b.latex);
+      return (
+        <div className="formula font-serif">
+          {segs.map((s, i) =>
+            s.sub ? (
+              <sub key={i}>{s.texto}</sub>
+            ) : s.sup ? (
+              <sup key={i}>{s.texto}</sup>
+            ) : (
+              <span key={i}>{s.texto}</span>
+            )
+          )}
+        </div>
+      );
+    }
     case "definicion":
       return (
         <div className="definicion">

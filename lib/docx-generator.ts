@@ -14,6 +14,7 @@ import {
   type IBorderOptions,
 } from "docx";
 import type { Apunte, ContentBlock } from "./schema";
+import { latexASegmentos } from "./latex";
 
 /* ---------- Helpers de estilo ---------- */
 
@@ -179,6 +180,20 @@ function cajaEnfasis(
 }
 
 function cajaFormula(latex: string) {
+  // Convierte el LaTeX crudo del LLM a segmentos legibles con
+  // sub/superíndices nativos de Word (nada de \frac visible).
+  const segmentos = latexASegmentos(latex);
+  const runs = segmentos.map(
+    (s) =>
+      new TextRun({
+        text: s.texto,
+        italics: true,
+        size: 24,
+        color: "1F1F1F",
+        ...(s.sub ? { subScript: true } : {}),
+        ...(s.sup ? { superScript: true } : {}),
+      })
+  );
   return new Paragraph({
     alignment: AlignmentType.CENTER,
     spacing: { before: 200, after: 200, line: 300 },
@@ -187,9 +202,7 @@ function cajaFormula(latex: string) {
       top: { style: BorderStyle.SINGLE, size: 4, color: "DDDDDD", space: 6 },
       bottom: { style: BorderStyle.SINGLE, size: 4, color: "DDDDDD", space: 6 },
     },
-    children: [
-      new TextRun({ text: latex, italics: true, size: 24, color: "1F1F1F" }),
-    ],
+    children: runs.length ? runs : [new TextRun({ text: latex })],
   });
 }
 

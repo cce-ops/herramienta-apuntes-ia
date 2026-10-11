@@ -17,7 +17,7 @@ Los apuntes deben evitar muros de texto. Alternan párrafos cortos, listas, tabl
 7. Cuando definas un concepto, usa el bloque {"tipo":"definicion","termino":"...","texto":"..."}.
 8. Cierra cada apartado o subapartado denso con un bloque {"tipo":"idea_clave","texto":"..."}.
 9. Usa {"tipo":"caja_enfasis","color":"azul"|"verde"|"amarillo"} para advertencias, obligaciones legales, hitos normativos o datos especialmente relevantes.
-10. Usa {"tipo":"formula","latex":"..."} para cualquier identidad o ecuación.
+10. Usa {"tipo":"formula","latex":"..."} para cualquier identidad o ecuación. Escribe el LaTeX LIMPIO: sin $, sin $$, sin \\( \\), sin \\[ \\], sin entornos \\begin/\\end. Usa \\frac{a}{b} para fracciones, _ para subíndices (t_e, t_{max}) y ^ para superíndices (x^2). No mezcles Unicode con LaTeX (escribe \\alpha, no α).
 11. Por defecto añade entre 6 y 10 "preguntas_repaso". Si el profesor pide otro número, respétalo dentro de los límites duros (5-12).
 12. La sección "referencias" recoge únicamente las fuentes que realmente aparecen citadas en el texto, en formato APA simplificado. Si el material no cita fuentes, devuelve "referencias": [] antes que inventar.
 13. Idioma: español académico, tercera persona, tiempo presente. Tono expositivo claro.
@@ -59,10 +59,31 @@ Los apuntes deben evitar muros de texto. Alternan párrafos cortos, listas, tabl
 
 Devuelve SOLO el JSON. Nada más.`;
 
+export const PAGINAS_MIN = 1;
+export const PAGINAS_MAX = 15;
+export const PAGINAS_DEFECTO = 5;
+
+/** Traduce el nº de páginas deseado a directrices concretas para el modelo.
+ *  Los límites duros del esquema (2-6 apartados, 5-12 preguntas) se respetan
+ *  siempre: son cotas, no objetivos exactos. */
+export function directricesLongitud(paginas: number): string {
+  const p = Math.min(Math.max(Math.round(paginas), PAGINAS_MIN), PAGINAS_MAX);
+  if (p <= 2)
+    return `LONGITUD DESEADA: unas ${p} página(s) (resumen MUY conciso). Genera 2 apartados con 2 subapartados cada uno, párrafos de ≤40 palabras, 5 preguntas de repaso y al menos 1 tabla. Prioriza solo lo esencial.`;
+  if (p <= 4)
+    return `LONGITUD DESEADA: unas ${p} páginas (resumen corto). Genera 3 apartados con 2-3 subapartados cada uno, párrafos de ≤50 palabras, 6-7 preguntas de repaso y al menos 2 tablas.`;
+  if (p <= 6)
+    return `LONGITUD DESEADA: unas ${p} páginas (longitud estándar). Genera 4 apartados con 2-3 subapartados cada uno, párrafos de ≤60 palabras, 7-8 preguntas de repaso y al menos 2 tablas comparativas.`;
+  if (p <= 9)
+    return `LONGITUD DESEADA: unas ${p} páginas (resumen extenso). Genera 5 apartados con 3 subapartados cada uno, párrafos densos de hasta 60 palabras, 9-10 preguntas de repaso y al menos 3 tablas. No rellenes: amplía con ejemplos, matices y comparaciones del material.`;
+  return `LONGITUD DESEADA: unas ${p} páginas (resumen MUY extenso). Genera 6 apartados con 3-4 subapartados cada uno, párrafos densos de hasta 60 palabras, 10-12 preguntas de repaso y al menos 3 tablas. Cubre todo el material en profundidad, sin relleno fuera del material.`;
+}
+
 export function buildUserPrompt(
   material: string,
   nombreArchivo: string,
-  instrucciones?: string
+  instrucciones?: string,
+  paginas?: number
 ) {
   const bloqueInstrucciones =
     instrucciones && instrucciones.trim()
@@ -74,8 +95,21 @@ ${instrucciones.trim()}
 `
       : "";
 
+  // La longitud es orientativa y queda POR DEBAJO de las instrucciones
+  // del profesor si ambas entran en conflicto (decisión del usuario).
+  const bloqueLongitud =
+    paginas !== undefined && Number.isFinite(paginas)
+      ? `
+=== LONGITUD DESEADA (orientativa, subordinada a las instrucciones del profesor) ===
+${directricesLongitud(paginas)}
+Si las INSTRUCCIONES DEL PROFESOR piden otro número de apartados o extensión, obedécelas a ellas.
+
+=== FIN DE LONGITUD ===
+`
+      : "";
+
   return `A continuación tienes el material bruto extraído de un archivo docente llamado "${nombreArchivo}".
-${bloqueInstrucciones}
+${bloqueInstrucciones}${bloqueLongitud}
 Transfórmalo en un documento de apuntes siguiendo estrictamente el esquema, las reglas del sistema y las instrucciones del profesor.
 
 === MATERIAL ORIGINAL ===
