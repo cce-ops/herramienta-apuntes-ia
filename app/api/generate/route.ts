@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseArchivo } from "@/lib/parser";
 import { MATERIAL_MAX_CHARS, PAGINAS_DEFECTO, PAGINAS_MAX, PAGINAS_MIN } from "@/lib/prompts";
 import {
+  crearLimitador,
+  sanearNombreSubida,
+  superaLimite,
+} from "@/lib/seguridad";
+import {
   generarApuntesConFallback,
   GeminiError,
   ORDEN_FALLBACK,
@@ -17,6 +22,10 @@ const MAX_INSTRUCCIONES = 6000;
 /** Tope de subida para no agotar la memoria de la función serverless. */
 const MAX_ARCHIVO_BYTES = 20 * 1024 * 1024; // 20 MB
 const EXTENSIONES_VALIDAS = ["docx", "pdf", "pptx", "md", "markdown", "txt"];
+const MAX_APIKEY_CHARS = 300;
+
+/** F2: throttle best-effort por instancia (ver lib/seguridad.ts). */
+const limitador = crearLimitador(8, 10 * 60 * 1000);
 
 function esModeloValido(m: string): m is ModeloId {
   return (ORDEN_FALLBACK as string[]).includes(m);
@@ -29,6 +38,22 @@ function redactar(mensaje: string): string {
 
 export async function POST(req: NextRequest) {
   try {
+    const ip =
+      (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() ||
+      "desconocida";
+    const limite = superaLimite(limitador, ip);
+    if (limite.limitado) {
+      return NextResponse.json(
+        {
+          error: `Demasiadas peticiones. Espera ${limite.reintentoSegs ?? 60}s e inténtalo de nuevo.`,
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": String(limite.reintentoSegs ?? 60) },
+        }
+      );
+    }
+
     const form = await req.formData();
     const file = form.get("file") as File | null;
     const apiKey = String(form.get("apiKey") ?? "").trim();
@@ -45,6 +70,8 @@ export async function POST(req: NextRequest) {
 
     if (!file)
       return NextResponse.json({ error: "Falta el archivo." }, { status: 400 });
+    // F3: el nombre viene del multipart y se usa en el prompt y en meta.
+    const nombreSeguro = sanearNombreSubida(file.name);
     if (file.size > MAX_ARCHIVO_BYTES)
       return NextResponse.json(
         {
@@ -52,7 +79,7 @@ export async function POST(req: NextRequest) {
         },
         { status: 413 }
       );
-    const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+    const ext = nombreSeguro.split(".").pop()?.toLowerCase() ?? "";
     if (!EXTENSIONES_VALIDAS.includes(ext))
       return NextResponse.json(
         { error: `Formato no soportado: .${ext}. Usa DOCX, PDF, PPTX, MD o TXT.` },
@@ -63,6 +90,11 @@ export async function POST(req: NextRequest) {
         { error: "Falta la API key de Gemini." },
         { status: 400 }
       );
+    if (apiKey.length > MAX_APIKEY_CHARS)
+      return NextResponse.json(
+        { error: "La API key es demasiado larga." },
+        { status: 400 }
+      );
     if (!modelo || !esModeloValido(modelo))
       return NextResponse.json(
         { error: "Modelo no válido." },
@@ -70,6 +102,7 @@ export async function POST(req: NextRequest) {
       );
 
     const parsed = await parseArchivo(file);
+    parsed.nombre = nombreSeguro;
 
     const resultado = await generarApuntesConFallback({
       apiKey,

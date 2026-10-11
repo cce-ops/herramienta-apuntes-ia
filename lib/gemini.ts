@@ -1,5 +1,6 @@
 import { ApunteSchema, type Apunte } from "./schema";
 import { SYSTEM_PROMPT, buildUserPrompt } from "./prompts";
+import { sanearUrlReferencia } from "./seguridad";
 
 const GEMINI_ENDPOINT =
   "https://generativelanguage.googleapis.com/v1beta/models";
@@ -232,7 +233,17 @@ async function llamarGeminiUnaVez(opts: {
     );
   }
 
-  return validado.data;
+  // F4: el LLM puede devolver URLs arbitrarias en referencias (p. ej.
+  // inducidas por el material). Solo se conservan http(s); el resto se
+  // descarta en vez de rechazar toda la generación.
+  const datos = validado.data;
+  return {
+    ...datos,
+    referencias: datos.referencias.map((r) => {
+      const url = sanearUrlReferencia(r.url);
+      return url === undefined ? { autor: r.autor, anio: r.anio, titulo: r.titulo } : { ...r, url };
+    }),
+  };
 }
 
 /* ============================================================

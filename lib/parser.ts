@@ -12,6 +12,23 @@ export type ParsedFile = {
 const MAX_CHARS = 200_000;
 const MAX_BYTES = 20 * 1024 * 1024; // 20 MB, en línea con app/api/generate/route.ts
 
+/* ---------- F1: cotas anti zip-bomb / documentos gigantes ---------- */
+const MAX_ZIP_ENTRADAS = 1000; // entradas totales del ZIP (docx/pptx)
+const MAX_XML_DOCUMENTO = 5 * 1024 * 1024; // word/document.xml o texto de slides acumulado
+const MAX_PDF_PAGINAS = 100;
+const PARSEO_TIMEOUT_MS = 20_000;
+
+function conTimeout<T>(promesa: Promise<T>, ms: number, etiqueta: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const limite = new Promise<never>((_, rechazar) => {
+    timer = setTimeout(
+      () => rechazar(new Error(`El ${etiqueta} es demasiado complejo (límite ${ms / 1000}s). Prueba con un archivo más pequeño.`)),
+      ms
+    );
+  });
+  return Promise.race([promesa, limite]).finally(() => clearTimeout(timer));
+}
+
 function limpiar(txt: string): string {
   return txt
     .replace(/\u00a0/g, " ")
@@ -23,21 +40,56 @@ function limpiar(txt: string): string {
 
 /* ---------------- DOCX ---------------- */
 async function parseDocx(buffer: Buffer): Promise<string> {
+  // Pre-chequeo barato del ZIP antes de que mammoth lo expanda en memoria.
+  const zip = await JSZip.loadAsync(buffer);
+  const nombres = Object.keys(zip.files);
+  if (nombres.length > MAX_ZIP_ENTRADAS) {
+    throw new Error(
+      `El DOCX tiene demasiadas entradas (${nombres.length}). Máximo ${MAX_ZIP_ENTRADAS}.`
+    );
+  }
+  const doc = zip.file("word/document.xml");
+  if (doc) {
+    const xml = await doc.async("string");
+    if (xml.length > MAX_XML_DOCUMENTO) {
+      throw new Error(
+        "El DOCX es demasiado grande al descomprimir. Prueba con un archivo más pequeño."
+      );
+    }
+  }
   const { value } = await mammoth.extractRawText({ buffer });
   return value;
 }
 
 /* ---------------- PDF ---------------- */
 async function parsePdf(buffer: Buffer): Promise<string> {
-  const pdf = await getDocumentProxy(new Uint8Array(buffer));
-  const { text } = await extractText(pdf, { mergePages: true });
-  return Array.isArray(text) ? text.join("\n\n") : text;
+  return conTimeout(
+    (async () => {
+      const pdf = await getDocumentProxy(new Uint8Array(buffer));
+      const paginas = (pdf as unknown as { numPages?: number }).numPages ?? 0;
+      if (paginas > MAX_PDF_PAGINAS) {
+        throw new Error(
+          `El PDF tiene ${paginas} páginas. Máximo ${MAX_PDF_PAGINAS}.`
+        );
+      }
+      const { text } = await extractText(pdf, { mergePages: true });
+      return Array.isArray(text) ? text.join("\n\n") : text;
+    })(),
+    PARSEO_TIMEOUT_MS,
+    "PDF"
+  );
 }
 
 /* ---------------- PPTX ---------------- */
 async function parsePptx(buffer: Buffer): Promise<string> {
   const zip = await JSZip.loadAsync(buffer);
-  const slides = Object.keys(zip.files)
+  const nombres = Object.keys(zip.files);
+  if (nombres.length > MAX_ZIP_ENTRADAS) {
+    throw new Error(
+      `El PPTX tiene demasiadas entradas (${nombres.length}). Máximo ${MAX_ZIP_ENTRADAS}.`
+    );
+  }
+  const slides = nombres
     .filter((n) => /^ppt\/slides\/slide\d+\.xml$/.test(n))
     .sort((a, b) => {
       const na = Number(a.match(/slide(\d+)/)?.[1] ?? 0);
@@ -46,8 +98,15 @@ async function parsePptx(buffer: Buffer): Promise<string> {
     });
 
   const partes: string[] = [];
+  let acumulado = 0;
   for (const nombre of slides) {
     const xml = await zip.files[nombre].async("string");
+    acumulado += xml.length;
+    if (acumulado > MAX_XML_DOCUMENTO) {
+      throw new Error(
+        "El PPTX es demasiado grande al descomprimir. Prueba con un archivo más pequeño."
+      );
+    }
     const textos = [...xml.matchAll(/<a:t[^>]*>([\s\S]*?)<\/a:t>/g)].map((m) => m[1]);
     const idx = nombre.match(/slide(\d+)/)?.[1] ?? "?";
     if (textos.length) {

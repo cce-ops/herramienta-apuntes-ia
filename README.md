@@ -47,6 +47,12 @@ Al terminar, el cliente recibe:
 
 La vista previa muestra un **panel plegable** con todo el historial.
 
+## Límites de seguridad
+
+- Archivos: 20 MB; ZIP con más de 1000 entradas, `document.xml`/slides de más de 5 MB al descomprimir o PDF de más de 100 páginas se rechazan con 400 (`lib/parser.ts`).
+- Throttle: 8 generaciones por IP cada 10 min (best-effort por instancia; para un límite estricto usa Vercel Firewall o KV). Responde 429 con `Retry-After`.
+- El nombre del archivo se sanea al ingestar y las URL de referencias se limitan a `http(s)`.
+
 ### Ajustar la política
 
 Edita las constantes al inicio de `lib/gemini.ts`:
