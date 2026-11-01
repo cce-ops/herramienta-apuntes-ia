@@ -9,6 +9,7 @@ const GEMINI_ENDPOINT =
  *  Modelos disponibles (orden = prioridad de fallback)
  * ============================================================ */
 export const MODELOS_DISPONIBLES = [
+  { id: "gemini-flash-latest", etiqueta: "Gemini Flash Latest (Alias actualizado automáticamente)" },
   { id: "gemini-3.8-flash", etiqueta: "Gemini 3.8 Flash (máxima calidad)" },
   { id: "gemini-3.7-flash", etiqueta: "Gemini 3.7 Flash" },
   { id: "gemini-3.6-flash", etiqueta: "Gemini 3.6 Flash" },
